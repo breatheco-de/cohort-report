@@ -1,59 +1,30 @@
-import React from "react";
-import getState from "./flux.js";
+import React, { useState, useEffect } from "react";
+import { createActions, initialStore } from "./flux.js";
 
 export const Context = React.createContext(null);
 
 const injectContext = PassedComponent => {
-	class StoreWrapper extends React.Component {
-		constructor(props) {
-			super(props);
+	const StoreWrapper = props => {
+		const [store, _setStore] = useState(initialStore);
+		const setStore = updated => {
+			console.log("Updated with ", updated);
+			_setStore(Object.assign(store, updated));
+		};
+		const getStore = () => store;
+		console.log("createActions ", typeof createActions);
+		const actions = createActions({ setStore, getStore });
 
-			this.state = getState({
-				getStore: () => this.state.store,
-				getActions: func => this.state.actions[func],
-				setStore: updatedStore =>
-					this.setState({
-						store: Object.assign(this.state.store, updatedStore)
-					})
-			});
-		}
-
-		componentDidMount() {
+		useEffect(() => {
 			// Get all cohorts
-			const url = `https://api.breatheco.de/cohorts/?access_token=`;
-			fetch(url, { cache: "no-cache" })
-				.then(response => response.json())
-				.then(data => {
-					this.setState(({ store }) => {
-						data.data.sort((a, b) => (new Date(a.kickoff_date) < new Date(b.kickoff_date) ? 1 : -1));
-						return { store: { ...store, cohorts: data.data } };
-					});
-				});
+			actions.fetchCohorts();
+		}, []);
 
-			// // A WAY OF SAVING TO STORE LEAVING THE OLD DATA, CREATES A NEW KEY DATA WITH THE VALUE OF DATA
-			// fetch(url)
-			// 	.then(response => response.json())
-			// 	.then(cohorts => {
-			// 		this.setState(state => {
-			// 			return { store: { ...state.store, cohorts } };
-			// 		});
-			// 	});
-			// // ANOTHER WAY OF SAVING TO STORE LEAVING THE OLD DATA, CREATES A NEW KEY CALLED COHORTS
-			// fetch(url)
-			// 	.then(response => response.json())
-			// 	.then(data => {
-			// 		this.setState({ store: { ...this.state.store, cohorts: data } });
-			// 	});
-		}
-
-		render() {
-			return (
-				<Context.Provider value={this.state}>
-					<PassedComponent {...this.props} />
-				</Context.Provider>
-			);
-		}
-	}
+		return (
+			<Context.Provider value={{ store, actions, setStore }}>
+				<PassedComponent {...props} />
+			</Context.Provider>
+		);
+	};
 	return StoreWrapper;
 };
 
